@@ -116,7 +116,7 @@ CUSTOM_TAG=16.14.0
 PULL_POLICY=missing
 
 # ── Database Config ────────────────────────────────────────────────────────
-DB_PASSWORD=admin
+DB_PASSWORD=123
 ROUTER=frappe
 
 # ── ERPNext Version ────────────────────────────────────────────────────────
@@ -449,7 +449,7 @@ docker network create traefik-public
 docker network create mariadb-network
 
 # 2. Shared MariaDB
-echo "DB_PASSWORD=admin" > mariadb.env
+echo "DB_PASSWORD=123" > mariadb.env
 docker compose -p mariadb --env-file mariadb.env -f overrides/compose.mariadb-shared.yaml up -d
 
 # 3. Deploy Bench One
