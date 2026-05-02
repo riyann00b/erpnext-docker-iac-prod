@@ -55,7 +55,7 @@ cd frappe_docker
 Create the `apps.json` file in the repository root. This tells the Docker build process which apps to bake into your image.
 
 ```bash
-zed apps.json
+zeditor apps.json
 ```
 
 Paste the following JSON:
@@ -105,7 +105,7 @@ docker build \
 
 ```bash
 cp example.env .env
-zed .env
+zeditor .env
 ```
 
 Set **at minimum** these values:
@@ -241,7 +241,7 @@ admin #password
 Create the backup script:
 
 ```bash
-zed auto_backup.sh
+zeditor auto_backup.sh
 ```
 
 Paste this script:
@@ -323,7 +323,7 @@ docker build \
 
 ```bash
 # 2. Update environment variables in .env
-zed .env
+zeditor .env
 
 # Edit ERPNEXT_VERSION and FRAPPE_VERSION as needed
 ```
