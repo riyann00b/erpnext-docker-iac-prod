@@ -60,6 +60,7 @@ zed apps.json
 
 Paste the following JSON:
 ```json[
+[
   {
     "url": "https://github.com/frappe/erpnext",
     "branch": "version-16"
