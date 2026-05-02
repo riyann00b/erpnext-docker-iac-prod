@@ -396,28 +396,108 @@ cp apps.json gitops/
 <details>
 <summary><b>🖨️ Print Designer Troubleshooting</b></summary>
 
-If PDF generation produces blank output, the image lacks Chromium.
+Print Designer Troubleshooting
 
-**1. Update `Containerfile`:**
-Edit `images/layered/Containerfile` and add this line after the WeasyPrint section:
+ Symptoms
+
+- Printing from `print_designer` fails or produces blank output.
+- Logs show errors referencing a missing Chromium binary.
+- The app attempts to download Chromium into the bench directory even though it is already installed.
+
+ Root Cause
+
+The container image is missing the Chromium dependency or the bench configuration does not point to the system Chromium binary. `print_designer` falls back to downloading its own copy when it cannot find a configured path.
+
+ Step 1 — Set the Chromium path in `common_site_config.json`
+
+Exec into the backend container as root:
+
+```bash
+docker exec -u 0 -it erpnext-backend-1 bash
+# Podman: podman exec -u 0 -it erpnext_backend_1 bash
+```
+
+Navigate to the sites directory and edit the config:
+
+```bash
+cd /home/frappe/frappe-bench/sites
+vim common_site_config.json
+```
+
+Ensure these keys are present (update `host_name` and `default_site` to match your environment):
+
+```json
+{
+  "chromium_binary_path": "/usr/bin/chromium",
+  "chromium_path": "/usr/bin/chromium",
+  "db_host": "db",
+  "db_port": 3306,
+  "default_site": "erp.your-domain.com",
+  "host_name": "http://erpnext-frontend-1:8080",
+  "redis_cache": "redis://redis-cache:6379",
+  "redis_queue": "redis://redis-queue:6379",
+  "redis_socketio": "redis://redis-queue:6379",
+  "socketio_port": 9000
+}
+```
+
+Step 2 — Bake Chromium into the custom image
+
+Open `images/custom/Containerfile` (or `images/layered/Containerfile` if using the layered build). After the section that installs WeasyPrint dependencies, add:
+
 ```dockerfile
 RUN apt-get update && apt-get install -y chromium && apt-get clean
 ```
 
-**2. Update `common_site_config.json`:**
+or 
+
+directly run  the command inside docker
+
 ```bash
-docker exec -u 0 -it erpnext-backend-1 bash
-cd /home/frappe/frappe-bench/sites
-vi common_site_config.json
-# Add: "chromium_binary_path": "/usr/bin/chromium"
+apt-get update && apt-get install -y chromium && apt-get clean
+
 ```
 
-**3. Rebuild and Reinstall:**
-Follow the update steps to rebuild the image, then:
+ Step 3 — Set the Chromium path via configurator
+
+In your `docker-compose.yml`, find the `configurator` service and append this command to its `command` block:
+
 ```bash
-docker compose -p erpnext exec backend bench --site frontend uninstall-app print_designer --force
-docker compose -p erpnext exec backend bench --site frontend install-app print_designer
+bench set-config -g chromium_binary_path /usr/bin/chromium
 ```
+
+
+
+ Step 4 — Rebuild, redeploy, and reinstall
+
+
+> [!IMPORTANT]
+> Only do this step if Baking Chromium into the custom image
+
+
+```bash
+# Rebuild the image with Chromium baked in
+docker build \
+  --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
+  --build-arg=FRAPPE_BRANCH=version-15 \
+  --build-arg=APPS_JSON_BASE64=$APPS_JSON_BASE64 \
+  --tag=custom-erpnext:15 \
+  --file=images/layered/Containerfile .
+
+# Restart the stack
+docker compose --project-name erpnext -f ~/gitops/erpnext.yaml down
+docker compose --project-name erpnext -f ~/gitops/erpnext.yaml up -d
+
+# Uninstall and reinstall print_designer so it picks up the new config
+docker compose --project-name erpnext exec backend \
+  bench --site erp.your-domain.com uninstall-app print_designer --yes --no-backup --force
+
+docker compose --project-name erpnext exec backend \
+  bench --site erp.your-domain.com install-app print_designer
+```
+
+> **Note:** Even with the binary path configured, `print_designer` may still attempt to download Chromium once. This is harmless as long as `/usr/bin/chromium` is available — the downloaded copy will be ignored. Monitor disk usage if this occurs repeatedly.
+
 </details>
 
 <details>
@@ -459,4 +539,3 @@ docker compose -p bench-one --env-file bench-one.env -f compose.yaml -f override
 docker compose -p bench-one -f bench-one.yaml up -d
 ```
 </details>
-
